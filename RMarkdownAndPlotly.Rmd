@@ -1,0 +1,92 @@
+---
+title: "R Markdown and Plotly"
+author: "Shivanand R Koppalkar"
+date: "April 28, 2017"
+output: html_document
+---
+
+## Background
+
+* As of 2014, about 4 million people retire every year.
+* Some states are more "Retirement Friendly" than others.
+* In Mar 2015, "BankRate" published a "First to Worst" survey, ranking states according to:
+    + Cost of Living
+    + Crime Rate
+    + Health Care Quality
+    + Weather
+    + Community Well-being
+* According to the BankRate survey, 60% of retirees will move when they retire.
+
+## Obtaining the Data
+
+* We "scraped" the "First to Worst" data from the "BankRate" website at: 
+  "http://www.bankrate.com/finance/retirement/best-places-retire-how-state-ranks.aspx""
+
+* After minor data cleanup, and adding the standard Postal Code State Abbreviations, 
+  we were ready to visualize the data.
+
+
+# Load the Plotly, xlsx and Webshot Libraries
+* We loaded the required libraries as needed: 
+```{r setup, echo=TRUE, message=FALSE}
+if (!require("plotly")) install.packages("plotly")
+library(plotly)
+if (!require("webshot")) install.packages("webshot")
+library(webshot)
+if (!require("xlsx")) install.packages("xlsx")
+library("xlsx")
+```
+
+# Load the Bank Rate Survey File
+```{r getData, echo=FALSE}
+brFileName <- "C:/2015.03.BankRateSurvey.xlsx"
+if (!file.exists(brFileName)) stop ("Data File is Missing")
+brData <- read.xlsx(brFileName, sheetIndex = 1, header = TRUE)
+brSiz <- dim(brData)
+brData$Overall.rank <- as.vector(brData$Overall.rank)
+```
+
+* We loaded the `r brSiz[1]` row x `r brSiz[2]` column data frame from `r brFileName`
+* The data column headers are: `r names(brData)`
+    * Each column contains a "First to Worst" ranking for that category; low numbers are good;
+    * The "Overall" ranking is according to BankRate's weighting criteria; a future version will support custom criteria.
+
+```{r doData, echo=FALSE}
+# Create hover text
+brData$hover <- with(brData, paste(state.name,
+                                   '<br>', "Overall Rank: ", Overall.Rank,
+                                   '<br>', "Cost of Living: ", Cost.of.Living,
+                                   '<br>', "Crime Rate: ", Crime.Rate,
+                                   '<br>', "Well Being: ", Community.Well.being,
+                                   '<br>', "Health Care: ", Health.Care,
+                                   '<br>', "Tax Rate: ", Tax.Rate,
+                                   '<br>', "Weather: ", Weather))
+
+# Make state borders black
+borders <- list(color = toRGB("black"), width=2)
+
+# Set up some mapping options
+map_options <- list(scope = 'usa', 
+                    projection = list(type = 'albers usa'),
+                    showlakes = TRUE,
+                    lakecolor = toRGB('black')
+                    )
+```
+* We set parameters for the Choropleth map, and assembled information to be displayed   
+  whenever the mouse hovers over a state; may need to zoom the map to see it all.           
+## First to Worst Retirement Friendly States
+
+```{r plotData, echo=FALSE}
+plotly::plot_ly(brData, 
+                z = brData$Overall.Rank, 
+                text = brData$hover, 
+                locations = brData$State, 
+                type = 'choropleth', 
+                locationmode = 'USA-states', 
+                color = brData$Overall.Rank, 
+                colors = 'Reds', 
+                marker = list(line = borders)) %>%
+  colorbar(title = "Retiree<br>Hostility") %>%
+  layout(title = 'Best States to Retire<br>(Hover for Details)', 
+         geo = map_options)                    
+```         
